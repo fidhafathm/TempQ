@@ -1,5 +1,10 @@
-import 'package:flutter/material.dart';
+import 'dart:ffi';
 
+import 'package:flutter/material.dart';
+import 'mqttservice.dart';
+
+Mqttservice mqttservice = Mqttservice();
+ValueNotifier<bool> state = ValueNotifier<bool>(false);
 
 void main() {
   runApp(MyApp());
@@ -12,60 +17,92 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
+  const HomePage({Key? key}) : super(key: key);
+
+  @override
+  _HomePageState createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  // Mqttservice mqttservice = Mqttservice();
+
+  @override
+  void initState() {
+    super.initState();
+    initBrokerServices();
+  }
+
+  void initBrokerServices() async {
+    int connectionResult = await mqttservice.ConnectBroker();
+    if (connectionResult == 0) {
+      mqttservice.subcribe();
+      mqttservice.listen();
+    }
+  }
+
+  // void subAndListen(initBrokerConnection) async {
+  //   if (initBrokerConnection) {
+  //     mqttservice.subcribe();
+  //     print("subscribed to temperature13567");
+  //     mqttservice.listen();
+  //   }
+  // }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
         body: Center(
-            child:
-                Container( //Outer Box
-                alignment: const Alignment(-1, -1), //alignment for innerbox 
+            child: Container(
+                //Outer Box
+                alignment: const Alignment(-1, -1), //alignment for innerbox
                 height: 200,
                 width: 350,
-                padding:const EdgeInsets.only(top:20,left:20,right:20,bottom:10),
+                padding: const EdgeInsets.only(
+                    top: 20, left: 20, right: 20, bottom: 10),
                 decoration: BoxDecoration(
-                  color:const Color.fromARGB(255, 156, 91, 45),
+                  color: const Color.fromARGB(255, 156, 91, 45),
                   borderRadius: BorderRadius.circular(15),
                 ),
                 child: Column(children: [
-                   Stack(
-                  children: [
-                    Container(          //inner Box
-                        width: 330,
-                        height: 75,
-                        alignment:const Alignment(-0.7,0.05), //alignment for text
-                        decoration: BoxDecoration(
-                          color:const Color.fromARGB(255, 86, 46, 15),
-                          borderRadius: BorderRadius.circular(15)
-                        ),                        
-                        child: const Text('Temperature  :    ', //inner box and text is inside the stack child of the main container
-                            style: TextStyle(
-                                fontSize: 18,
-                                fontFamily: 'Tiro Kannada',
-                                color: Color.fromARGB(255, 245, 250, 255))),
-                        )]),
-                   const SizedBox(
+                  Stack(children: [
+                    Container(
+                      //inner Box
+                      width: 330,
+                      height: 75,
+                      alignment:
+                          const Alignment(-0.7, 0.05), //alignment for text
+                      decoration: BoxDecoration(
+                          color: const Color.fromARGB(255, 86, 46, 15),
+                          borderRadius: BorderRadius.circular(15)),
+                      child: ValueListenableBuilder<String>(
+                          valueListenable: mqttservice.temperature,
+                          builder:
+                              (BuildContext context, value, Widget? child) {
+                            return Text(
+                                'Temperature  :  $value  ', //inner box and text is inside the stack child of the main container
+                                style: const TextStyle(
+                                    fontSize: 18,
+                                    fontFamily: 'Tiro Kannada',
+                                    color: Color.fromARGB(255, 245, 250, 255)));
+                          }),
+                    )
+                  ]),
+                  const SizedBox(
                     height: 25,
-                   ),
-                   const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                    //SizedBox(
-                      //width : 200,
-                      //height: 50,
-                      //child: Stack(
-                      //children:[ 
-                        //Container(
-                        //padding:const EdgeInsets.all(20),
-                        //decoration : BoxDecoration(
-                          //borderRadius: BorderRadius.circular(10) ),
-                           //),
-                         toggleSwitch(),
-                         SizedBox(width:20),
-                         Bulb(isGlowing: true)
-
-                  ,]),])
-              ))); 
+                  ),
+                  Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        toggleSwitch(),
+                        SizedBox(width: 20),
+                        ValueListenableBuilder<bool>(
+                          valueListenable: state,
+                           builder: (builder,value,child){
+                            return Bulb(isGlowing: value);
+                           }),
+                      ]),
+                ]))));
   }
 }
 
@@ -79,15 +116,28 @@ class toggleSwitch extends StatefulWidget {
 }
 
 class _SwitchExampleState extends State<toggleSwitch> {
-  bool light = true;
+  bool light = false;
+  //final Mqttservice mqttservice = Mqttservice();
 
   @override
   Widget build(BuildContext context) {
     return Switch(
       // This bool value toggles the switch.
       value: light,
-      activeColor: Color.fromARGB(255, 251, 251, 251),
-      onChanged: (bool value) {
+      activeColor: const Color.fromARGB(255, 251, 251, 251),
+      onChanged: (bool value) async {
+        if (light) {
+          print("light is turned off now");
+          mqttservice.publish(false);
+          state.value = false;
+          // mqttservice.disconnect();
+          //mqttservice.streamController.close();
+        } else {
+          print("light is turned on now");
+          mqttservice.publish(true);
+          state.value = true;
+          // mqttservice.listen();
+        }
         // This is called when the user toggles the switch.
         setState(() {
           light = value;
