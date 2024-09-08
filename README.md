@@ -1,2 +1,2 @@
 # myMqttclone
-## This is like a clone app for myMQTT
+## Integrate IoT devices,control them through this app
